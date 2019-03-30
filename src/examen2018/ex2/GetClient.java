@@ -22,56 +22,53 @@ import java.nio.charset.Charset;
  *
  * @author Maroine
  */
-public class RunnableImpl implements Runnable {
+public class GetClient implements Runnable {
 
     SocketAddress addr;
     final int HTTP_PORT = 80;
     private final String url;
     private final ByteBuffer bb;
     final static Charset c = Charset.forName("ASCII");
+    private SocketChannel socket;
 
-    public RunnableImpl(String url) {
+    public GetClient(String url) {
         this.url = url;
         addr = new InetSocketAddress(url, HTTP_PORT);
         bb = ByteBuffer.allocate(1024);
     }
 
-    public void writeString(String s) {
-        ByteBuffer encode = c.encode(s);
-        bb.put(encode);
+    public void sendGet() throws IOException {
+        socket = SocketChannel.open();
+        socket.connect(addr);
 
+        String req
+                = "GET / HTTP/1.1\n"
+                + "Host: " + url + "\n\n";
+
+        ByteBuffer encode = c.encode(req);
+        bb.put(encode);
+        bb.flip();
+        socket.write(bb);
     }
 
-    public String readString() {
-        int remaining = bb.getInt();
-        int limit = bb.position();
-        bb.limit(limit + remaining);
-        CharBuffer decode = c.decode(bb);
-        bb.limit(limit);
-        return decode.toString();
+    public void receiveGet() throws IOException {
+        bb.clear();
+        int n;
+        while ((n = socket.read(bb)) > 0) {
+            System.out.println(n);
+            bb.limit(bb.position());
+            bb.flip();
+            CharBuffer decode = c.decode(bb);
+            System.out.print(decode.toString());
+            bb.clear();
+        }
     }
 
     @Override
     public void run() {
         try {
-            SocketChannel socket = SocketChannel.open();
-            socket.connect(addr);
-
-            String req
-                    = "GET / HTTP/1.1\n"
-                    + "Host: " + url + "\n\n";
-
-            PrintWriter pw = new PrintWriter(socket.socket().getOutputStream());
-            pw.print(req);
-            pw.flush();
-            int n;
-            while ((n = socket.read(bb)) > 0) {
-                bb.limit(bb.position());
-                bb.flip();
-                CharBuffer decode = c.decode(bb);
-                System.out.print(decode.toString());
-                bb.clear();
-            }
+            sendGet();
+            receiveGet();
         } catch (IOException ex) {
             System.out.println(ex);
         }
@@ -79,7 +76,7 @@ public class RunnableImpl implements Runnable {
     }
 
     public static void main(String[] args) {
-        RunnableImpl r = new RunnableImpl("www.google.com");
+        GetClient r = new GetClient("www.google.com");
         r.run();
     }
 
