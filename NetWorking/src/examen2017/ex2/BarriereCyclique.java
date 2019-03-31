@@ -46,4 +46,7 @@ public class BarriereCyclique {
 
         }
     }
+
+    public static void main(String[] args) {
+    }
 }
